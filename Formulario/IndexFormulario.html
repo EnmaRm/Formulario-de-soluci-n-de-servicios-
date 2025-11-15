@@ -1,0 +1,360 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Formulario de Solución de Servicios</title>
+</head>
+<body>
+  <main>
+    <h1>Formulario de Solución de Servicios</h1>
+
+    <p id="instructions">Rellena todos los campos obligatorios marcados con <strong>*</strong>. Antes de enviar verás un resumen para confirmar.</p>
+
+    <div role="region" aria-live="polite" id="status" style="display:none;"></div>
+
+    <form id="serviceForm" action="/submit-service" method="post" enctype="multipart/form-data" novalidate>
+      <!-- Metadatos invisibles -->
+      <input type="hidden" name="submission_id" id="submission_id" value="">
+      <input type="hidden" name="submitted_at" id="submitted_at" value="">
+
+      <!-- Datos del cliente -->
+      <fieldset>
+        <legend>Datos del cliente</legend>
+
+        <label for="client_name">Nombre completo *:</label>
+        <input id="client_name" name="client_name" type="text" required minlength="2" autocomplete="name" />
+
+        <br/>
+
+        <label for="company">Empresa / Organización:</label>
+        <input id="company" name="company" type="text" autocomplete="organization" />
+
+        <br/>
+
+        <label for="email">Correo electrónico *:</label>
+        <input id="email" name="email" type="email" required autocomplete="email" />
+
+        <br/>
+
+        <label for="phone">Teléfono *:</label>
+        <input id="phone" name="phone" type="tel" required pattern="^\+?[0-9\s\-().]{7,20}$" placeholder="+34 612 345 678" />
+
+        <br/>
+
+        <label for="address">Dirección (calle, ciudad):</label>
+        <input id="address" name="address" type="text" autocomplete="street-address" />
+      </fieldset>
+
+      <br/>
+
+      <!-- Detalles del servicio -->
+      <fieldset>
+        <legend>Detalles del servicio</legend>
+
+        <label for="service_type">Tipo de servicio *:</label>
+        <select id="service_type" name="service_type" required>
+          <option value="">-- Selecciona --</option>
+          <option value="instalacion">Instalación</option>
+          <option value="mantenimiento">Mantenimiento</option>
+          <option value="reparacion">Reparación</option>
+          <option value="actualizacion">Actualización</option>
+          <option value="consultoria">Consultoría</option>
+          <option value="otro">Otro</option>
+        </select>
+
+        <br/>
+
+        <label for="service_other" id="service_other_label" style="display:none;">Especifique (otro):</label>
+        <input id="service_other" name="service_other" type="text" style="display:none;" />
+
+        <br/>
+
+        <label for="priority">Prioridad *:</label>
+        <select id="priority" name="priority" required>
+          <option value="">-- Selecciona --</option>
+          <option value="baja">Baja</option>
+          <option value="normal">Normal</option>
+          <option value="alta">Alta</option>
+          <option value="urgente">Urgente</option>
+        </select>
+
+        <br/>
+
+        <label for="preferred_date">Fecha preferida:</label>
+        <input id="preferred_date" name="preferred_date" type="date" />
+
+        <label for="preferred_time">Hora preferida:</label>
+        <input id="preferred_time" name="preferred_time" type="time" />
+
+        <br/>
+
+        <label for="estimated_budget">Presupuesto estimado (opcional):</label>
+        <input id="estimated_budget" name="estimated_budget" type="number" min="0" step="0.01" inputmode="decimal" placeholder="0.00" />
+
+        <br/>
+
+        <label for="description">Descripción del problema / trabajo *:</label>
+        <textarea id="description" name="description" rows="6" required minlength="10" aria-describedby="desc-help"></textarea>
+        <div id="desc-help">Describe claramente lo ocurrido, pasos ya intentados y resultados esperados.</div>
+
+        <br/>
+
+        <label for="attachments">Adjuntar archivos (máx total 10 MB):</label>
+        <input id="attachments" name="attachments" type="file" multiple accept=".pdf,image/*,text/plain,application/zip" />
+        <div id="file-help">Se permiten .pdf, imágenes, .txt y .zip. Tamaño total máximo 10 MB.</div>
+      </fieldset>
+
+      <br/>
+
+      <!-- Asignación interna (opcional) -->
+      <fieldset>
+        <legend>Asignación interna (opcional)</legend>
+
+        <label for="department">Departamento sugerido:</label>
+        <input id="department" name="department" list="departments" />
+        <datalist id="departments">
+          <option value="Soporte técnico"></option>
+          <option value="Instalaciones"></option>
+          <option value="Mantenimiento"></option>
+          <option value="Consultoría"></option>
+          <option value="Ventas"></option>
+        </datalist>
+
+        <br/>
+
+        <label for="assigned_to">Técnico asignado (si ya hay):</label>
+        <input id="assigned_to" name="assigned_to" type="text" />
+      </fieldset>
+
+      <br/>
+
+      <label>
+        <input id="consent" name="consent" type="checkbox" required />
+        Confirmo que la información es veraz y autorizo el tratamiento para gestionar el servicio. *
+      </label>
+
+      <br/><br/>
+
+      <button type="button" id="previewBtn">Ver resumen / Confirmar</button>
+      <button type="submit">Enviar solicitud</button>
+      <button type="reset">Limpiar formulario</button>
+    </form>
+
+    <!-- Dialog de confirmación (vista previa) -->
+    <dialog id="previewDialog" aria-labelledby="previewTitle">
+      <h2 id="previewTitle">Resumen de la solicitud</h2>
+      <div id="previewContent" style="white-space:pre-wrap;"></div>
+      <menu>
+        <button id="editBtn">Editar</button>
+        <button id="confirmSendBtn">Confirmar y enviar</button>
+      </menu>
+    </dialog>
+
+    <noscript>
+      <p><strong>Atención:</strong> Este formulario funciona mejor con JavaScript activado (previsualización y control de archivos). Sin JS, se enviará directamente al servidor (si se ha configurado el atributo action).</p>
+    </noscript>
+  </main>
+
+  <script>
+    // ---- Helpers ----
+    function generateUUID() {
+      // UUID v4 simple
+      return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+        var r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
+        return v.toString(16);
+      });
+    }
+
+    function formatFileList(files) {
+      if (!files || files.length === 0) return '— Ninguno —';
+      const parts = [];
+      for (let f of files) {
+        parts.push(f.name + ' (' + Math.round(f.size/1024) + ' KB)');
+      }
+      return parts.join('\\n');
+    }
+
+    function totalFileSize(files) {
+      let s = 0;
+      for (let f of files) s += f.size;
+      return s;
+    }
+
+    // ---- Init metadata ----
+    const submissionIdInput = document.getElementById('submission_id');
+    const submittedAtInput = document.getElementById('submitted_at');
+    submissionIdInput.value = generateUUID();
+    submittedAtInput.value = new Date().toISOString();
+
+    // Update timestamp on submit preview
+    function refreshTimestamp() {
+      submittedAtInput.value = new Date().toISOString();
+    }
+
+    // ---- Show/hide "otro" campo ----
+    const serviceSelect = document.getElementById('service_type');
+    const serviceOther = document.getElementById('service_other');
+    const serviceOtherLabel = document.getElementById('service_other_label');
+
+    serviceSelect.addEventListener('change', () => {
+      if (serviceSelect.value === 'otro') {
+        serviceOther.style.display = '';
+        serviceOtherLabel.style.display = '';
+        serviceOther.required = true;
+      } else {
+        serviceOther.style.display = 'none';
+        serviceOtherLabel.style.display = 'none';
+        serviceOther.required = false;
+        serviceOther.value = '';
+      }
+    });
+
+    // ---- Preview dialog and submit handling ----
+    const form = document.getElementById('serviceForm');
+    const previewBtn = document.getElementById('previewBtn');
+    const previewDialog = document.getElementById('previewDialog');
+    const previewContent = document.getElementById('previewContent');
+    const confirmSendBtn = document.getElementById('confirmSendBtn');
+    const editBtn = document.getElementById('editBtn');
+    const status = document.getElementById('status');
+
+    function buildSummary() {
+      const fd = new FormData(form);
+      const files = document.getElementById('attachments').files;
+      const lines = [];
+
+      lines.push('ID de envío: ' + submissionIdInput.value);
+      lines.push('Fecha (ISO): ' + submittedAtInput.value);
+      lines.push('');
+      lines.push('--- Datos del cliente ---');
+      lines.push('Nombre: ' + (fd.get('client_name') || ''));
+      lines.push('Empresa: ' + (fd.get('company') || ''));
+      lines.push('Email: ' + (fd.get('email') || ''));
+      lines.push('Teléfono: ' + (fd.get('phone') || ''));
+      lines.push('Dirección: ' + (fd.get('address') || ''));
+      lines.push('');
+      lines.push('--- Detalles del servicio ---');
+      let st = fd.get('service_type') || '';
+      if (st === 'otro') st = 'Otro: ' + (fd.get('service_other') || '');
+      lines.push('Tipo: ' + st);
+      lines.push('Prioridad: ' + (fd.get('priority') || ''));
+      lines.push('Fecha preferida: ' + (fd.get('preferred_date') || ''));
+      lines.push('Hora preferida: ' + (fd.get('preferred_time') || ''));
+      lines.push('Presupuesto estimado: ' + (fd.get('estimated_budget') || ''));
+      lines.push('');
+      lines.push('Descripción:');
+      lines.push(fd.get('description') || '');
+      lines.push('');
+      lines.push('Archivos adjuntos:');
+      lines.push(formatFileList(files));
+      lines.push('');
+      lines.push('Departamento sugerido: ' + (fd.get('department') || ''));
+      lines.push('Técnico asignado: ' + (fd.get('assigned_to') || ''));
+      lines.push('');
+      lines.push('Consentimiento: ' + (fd.get('consent') ? 'Aceptado' : 'No aceptado'));
+
+      return lines.join('\\n');
+    }
+
+    previewBtn.addEventListener('click', (e) => {
+      // Use HTML5 constraint validation first
+      // We will show validation messages if invalid
+      // Custom file-size validation: total <= 10MB
+      const files = document.getElementById('attachments').files;
+      const totalSize = totalFileSize(files);
+      if (totalSize > 10 * 1024 * 1024) {
+        status.style.display = '';
+        status.textContent = 'Error: el tamaño total de archivos supera 10 MB. Elimina algunos archivos antes de continuar.';
+        status.setAttribute('aria-hidden', 'false');
+        return;
+      } else {
+        status.style.display = 'none';
+      }
+
+      // Run built-in validation: checkValidity
+      // but show messages manually to avoid jumping
+      if (!form.checkValidity()) {
+        // Trigger native validation UI where supported
+        // Also set aria-live with a short summary
+        status.style.display = '';
+        status.textContent = 'Hay campos obligatorios sin completar o con formato incorrecto. Revisa el formulario.';
+        form.reportValidity();
+        return;
+      }
+
+      // All good: refresh timestamp and build preview
+      submissionIdInput.value = submissionIdInput.value || generateUUID();
+      refreshTimestamp();
+      previewContent.textContent = buildSummary();
+
+      // Show dialog (if supported)
+      if (typeof previewDialog.showModal === 'function') {
+        previewDialog.showModal();
+      } else {
+        // fallback: alert
+        if (confirm('Mostrar resumen en ventana emergente no soportada. ¿Deseas enviar directamente?')) {
+          form.submit();
+        }
+      }
+    });
+
+    editBtn.addEventListener('click', () => {
+      previewDialog.close();
+    });
+
+    confirmSendBtn.addEventListener('click', () => {
+      previewDialog.close();
+      // Final validation before send (file size again)
+      const files = document.getElementById('attachments').files;
+      if (totalFileSize(files) > 10 * 1024 * 1024) {
+        status.style.display = '';
+        status.textContent = 'Error: el tamaño total de archivos supera 10 MB.';
+        return;
+      }
+      // Optionally, disable buttons to avoid double-submit
+      const submitBtn = form.querySelector('[type="submit"]');
+      if (submitBtn) submitBtn.disabled = true;
+
+      // If you want to actually prevent navigation and show a message:
+      status.style.display = '';
+      status.textContent = 'Enviando...';
+
+      // Submit the form
+      form.submit();
+    });
+
+    // Accessibility: close dialog with Escape
+    previewDialog.addEventListener('cancel', function(ev) {
+      ev.preventDefault();
+      previewDialog.close();
+    });
+
+    // Reset updates metadata and status
+    form.addEventListener('reset', () => {
+      submissionIdInput.value = generateUUID();
+      submittedAtInput.value = new Date().toISOString();
+      status.style.display = 'none';
+      // hide other field if visible
+      serviceOther.style.display = 'none';
+      serviceOtherLabel.style.display = 'none';
+    });
+
+    // Optional: prevent accidental double submissions by disabling submit after submit
+    form.addEventListener('submit', (e) => {
+      // If you want to handle submission via fetch/AJAX, prevent default here and implement fetch.
+      // For now, allow default (will navigate/POST to action) but ensure forms are valid.
+      if (!form.checkValidity()) {
+        e.preventDefault();
+        form.reportValidity();
+        status.style.display = '';
+        status.textContent = 'Formulario inválido. Corrige los errores antes de enviar.';
+      } else {
+        // final metadata refresh
+        refreshTimestamp();
+        // leave default behavior so the browser posts the form
+      }
+    });
+  </script>
+</body>
+</html>
